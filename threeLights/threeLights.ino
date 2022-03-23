@@ -1,4 +1,3 @@
-#Juin Sommer
 
 #define LED1 8
 #define LED2 9
@@ -27,4 +26,5 @@ void loop() {
   delay(1000);
 }
 
+//Juin Sommer
 //Mike Baileyy
