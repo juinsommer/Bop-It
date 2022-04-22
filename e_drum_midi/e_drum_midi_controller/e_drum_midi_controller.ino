@@ -2,24 +2,23 @@
  #include <MIDI.h>
  MIDI_CREATE_DEFAULT_INSTANCE();
 
- int playCount = 0, start_delay = 600;
- static uint8_t score = 0;
- bool win = true;
+ #define START_DELAY_DEFAULT    600
  
+ int playCount = 0, start_delay = START_DELAY_DEFAULT;
+ uint8_t score = 0;
+ bool win_round = true, start_game = false, win_game = false;
+
  HelloDrum kick(0);
  HelloDrum snare(1);
  HelloDrum hihat(2);
-// HelloDrum tom1(3);
-// HelloDrum tom2(4);
-// HelloDrum crash(5);
 
 void sense() {
+  
+   // args (sensitivity, threshold, scan time, mask time
    kick.singlePiezo();
    snare.singlePiezo();
    hihat.singlePiezo();
-//   tom1.singlePiezo();
-//   tom2.singlePiezo();
-//   crash.singlePiezo();
+
 }
 
 void play_hiHat() {
@@ -118,48 +117,47 @@ void play_beat3(int t) {
 
 }
 
+// checks if number of notes played by user matches number of notes in given beat
 bool check_user(int t, int notes) {
+
+  // variable to track elapsed time of user attempt
   unsigned long start_t = millis(), elapse_time = 0, measure = (4 * t);
   int noteCount = 0;
-  
+
+  // execute while the elapsed time does not exceed the time of the measure
   while(elapse_time <= measure) {
 
+      // sense for user input, if user hits any pad, increment number of notes 
       sense();
      
       if (kick.hit == true)
       {
-        MIDI.sendNoteOn(35, kick.velocity, 10); //(note, velocity, channel)
+        MIDI.sendNoteOn(35, 100, 10); //(note, velocity, channel)
         MIDI.sendNoteOff(35, 0, 10);
-        noteCount++;
+        ++noteCount;
       }
     
       
       if (snare.hit == true)
       {
-        MIDI.sendNoteOn(38, snare.velocity, 10); //(note, velocity, channel)
+        MIDI.sendNoteOn(38, 80, 10);
         MIDI.sendNoteOff(38, 0, 10);
-        noteCount++;
+        ++noteCount;
       }
      
       if (hihat.hit == true)
       {
-        MIDI.sendNoteOn(46, hihat.velocity, 10); //(note of close, velocity, channel)
+        MIDI.sendNoteOn(46, 80, 10);
         MIDI.sendNoteOff(46, 0, 10);
-        noteCount++;
+        ++noteCount;
       }
-//      
-//      if(crash.hit == true)
-//      {
-//        MIDI.sendNoteOn(49, crash.velocity, 10); //(note of close, velocity, channel)
-//        MIDI.sendNoteOff(49, 0, 10);  
-//        noteCount++;
-//      }
       
       unsigned long now_t = millis();
       elapse_time = now_t - start_t;
   }
-  
-  if(noteCount > 0)
+
+  // if number of notes matches notes in beat, user wins round
+  if(noteCount >= notes - 1 && noteCount <= notes + 1)
     return true;
 
   else
@@ -167,20 +165,24 @@ bool check_user(int t, int notes) {
 
 }
 
-bool beat_off(int t, uint8_t s) {
-  long beatNumber = random(1,4); // generate random number [1, 3]
-  int notes = 0;
-  bool success;
+// game logic function returning a bool. accepts an integer time value for delay/tempo 
+// and 8 bit wide unsigned int for score count to be displayed to 7 segment displays
+bool beat_off(int t) {
   
+  long beatNumber = random(1,4); // generate random number [1, 3]
+  int notes = 0; // variable to track number of notes user plays
+  bool success;
+
+ // random number generated will determine which beat to play 
   switch(beatNumber) {
     case 1: 
       play_beat1(t);
-      notes = 9;
+      notes = 9; // total number of notes in beat
       break;
       
     case 2:
       play_beat2(t);
-      notes = 1;
+      notes = 16;
       break;
       
     case 3:
@@ -203,11 +205,12 @@ bool beat_off(int t, uint8_t s) {
 
   // if user succeeds
   if(flag) {
+    score = (score + 1) & 0xFF;
+    displayWrite(score);
     digitalWrite(2, HIGH); // power success indicator LED
-    ++score; // increment score
-    displayWrite(s); // display score to 7 segment displays
-    delay(2000);
+    delay(2000); // leave on for 2 seconds
     digitalWrite(2, LOW); // turn off LED
+    
     success = true; 
   }
   
@@ -225,108 +228,138 @@ bool beat_off(int t, uint8_t s) {
 
 // function to display score to 7 segment displays
 void displayWrite(uint8_t value) {
+  int pin, pin2, a, b;
+  
+  if(value <= 9) {
+               
+     for(pin = 5, a = 0; pin <= 8; pin++, a++)
+        digitalWrite(pin, bitRead(value, a));
 
-  if(value < 10) {
-     digitalWrite(5, bitRead(value, 0));  // BCD LSB
-     digitalWrite(6, bitRead(value, 1));
-     digitalWrite(7, bitRead(value, 2));
-     digitalWrite(8, bitRead(value, 3));  // BCD MSB
 
-     // display 0 for single digit score
-     digitalWrite(9, bitRead(0, 0));  // BCD LSB
-     digitalWrite(10, bitRead(0, 1));
-     digitalWrite(11, bitRead(0, 2));
-     digitalWrite(12, bitRead(0, 3));  // BCD MSB
+     for(pin2 = 12, b = 0; pin2 >= 9; pin2--, b++) {
+        digitalWrite(pin2, bitRead(0, b));
+         
+     }
   }
 
-  else {
-    
-     digitalWrite(5, bitRead(value, 0));  // BCD LSB
-     digitalWrite(6, bitRead(value, 1));
-     digitalWrite(7, bitRead(value, 2));
-     digitalWrite(8, bitRead(value, 3));  
-     digitalWrite(9, bitRead(value, 4));
-     digitalWrite(10, bitRead(value, 5));
-     digitalWrite(11, bitRead(value, 6));
-     digitalWrite(12, bitRead(value, 7));  // BCD MSB
-
+  else if(value >= 10) {
+    int ones, tens;
+     ones = value % 10;
+     tens = (value / 10) % 10;
+        
+     for(pin = 5, a = 0; pin <= 8; pin++, a++)
+        digitalWrite(pin, bitRead(ones, a));
+      
+     for(pin2 = 12, b = 0; pin2 >= 9; pin2--, b++)
+        digitalWrite(pin2, bitRead(tens, b));
   }
 }
- 
 
+// function to read if user has started game by hitting snare 5 times within 4 seconds
+// returns true if 5 snare hits were detected, else false
+ bool check_start() {
+  
+     int count = 0; // tracks how many times pad was hit
+     unsigned long start_t = millis(), elapse_time = 0; // track time
+     
+
+     // check user input for 4 seconds
+     while(elapse_time <= 3000) {
+
+         sense();
+        
+         if (kick.hit == true)
+        {
+          MIDI.sendNoteOn(35, 120, 10); //(note, velocity, channel)
+          MIDI.sendNoteOff(35, 0, 10);
+        }
+      
+        if (snare.hit == true)
+        {
+          MIDI.sendNoteOn(38, 80, 10); //(note, velocity, channel)
+          MIDI.sendNoteOff(38, 0, 10);
+          ++count;
+        }
+       
+        if (hihat.hit == true)
+        {
+          MIDI.sendNoteOn(46, 80, 10); //(note of close, velocity, channel)
+          MIDI.sendNoteOff(46, 0, 10);  
+        }
+
+        unsigned long now_t = millis();
+        elapse_time = now_t - start_t;
+        
+     } // end while
+        
+    if(count == 5) return true; 
+
+    else return false;
+ }
+
+ 
  void setup()
  {
-     randomSeed(1112112112);
+     randomSeed(0);
      MIDI.begin(10);
 
      // setup for BCD converter pins
-     pinMode(5, OUTPUT);
-     pinMode(6, OUTPUT);
-     pinMode(7, OUTPUT);
-     pinMode(8, OUTPUT);
-     pinMode(9, OUTPUT);
-     pinMode(10, OUTPUT);
-     pinMode(11, OUTPUT);
-     pinMode(12, OUTPUT);
-
+     for(int i = 5; i <= 12; i++)
+        pinMode(i, OUTPUT);
+     
      // setup for LED indicators
      pinMode(2, OUTPUT);
      pinMode(3, OUTPUT);
-
-     // setup for start button
-     pinMode(4, INPUT);
-
-     
+ }   
+  
  void loop()
  {
     
-    sense();
+    sense(); // sense piezo inputs
 
-     //Sending MIDI signals.
-    //KICK//
+    //Sending MIDI signals.
+    
     if (kick.hit == true)
     {
-      MIDI.sendNoteOn(35, kick.velocity, 10); //(note, velocity, channel)
+      MIDI.sendNoteOn(35, 100, 10); //(note, velocity, channel)
       MIDI.sendNoteOff(35, 0, 10);
     }
   
     //SNARE//
     if (snare.hit == true)
     {
-      MIDI.sendNoteOn(38, snare.velocity, 10); //(note, velocity, channel)
+      MIDI.sendNoteOn(38, 80, 10); //(note, velocity, channel)
       MIDI.sendNoteOff(38, 0, 10);
+
     }
-    //HIHAT//
+    //HIHAT
     if (hihat.hit == true)
     {
-      MIDI.sendNoteOn(46, hihat.velocity, 10); //(note of close, velocity, channel)
+      MIDI.sendNoteOn(46, 80, 10); //(note of close, velocity, channel)
       MIDI.sendNoteOff(46, 0, 10);  
     }
-    //TOM1//
-//    if(tom1.hit == true)
-//    {
-//      MIDI.sendNoteOn(47, tom1.velocity, 10); //(note of close, velocity, channel)
-//      MIDI.sendNoteOff(47, 0, 10);  
-//    }
-//    //TOM2//
-//    if(tom2.hit == true)
-//    {
-//      MIDI.sendNoteOn(43, tom2.velocity, 10); //(note of close, velocity, channel)
-//      MIDI.sendNoteOff(43, 0, 10);  
-//    }
-//    //CRASH//
-//    if(crash.hit == true)
-//    {
-//      MIDI.sendNoteOn(49, crash.velocity, 10); //(note of close, velocity, channel)
-//      MIDI.sendNoteOff(49, 0, 10);  
-//    }
-//    
-    if(digitalRead(4) == LOW) {
+  
+
+    start_game = (start_game == false) ? check_start() : true;
+    
+    // if start has been activated
+    if(start_game) {
         // game logic 
-        if(playCount < 100 && win) {
-           win = beat_off(start_delay, score);
-           start_delay -= 4;
+        if(playCount < 100 && win_round) {
+           
+           win_round = beat_off(start_delay);
+           start_delay -= 4; // increase tempo by decreasing delay
            playCount++;
+
+        }
+
+        // if user wins game or loses reset all values
+        if(playCount == 99 || win_round == false) {
+          start_game = false;
+          start_delay = START_DELAY_DEFAULT;
+          playCount = 0;
+          score = 0;
+          
         }
     }
      
