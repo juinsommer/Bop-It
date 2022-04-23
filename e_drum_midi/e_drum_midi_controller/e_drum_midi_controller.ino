@@ -13,12 +13,10 @@
  HelloDrum hihat(2);
 
 void sense() {
-  
-   // args (sensitivity, threshold, scan time, mask time
+   // args (sensitivity, threshold, scan time, mask time)
    kick.singlePiezo();
    snare.singlePiezo();
    hihat.singlePiezo();
-
 }
 
 void play_hiHat() {
@@ -130,23 +128,19 @@ bool check_user(int t, int notes) {
       // sense for user input, if user hits any pad, increment number of notes 
       sense();
      
-      if (kick.hit == true)
-      {
+      if(kick.hit == true) {
         MIDI.sendNoteOn(35, 100, 10); //(note, velocity, channel)
         MIDI.sendNoteOff(35, 0, 10);
         ++noteCount;
       }
     
-      
-      if (snare.hit == true)
-      {
+      if(snare.hit == true) {
         MIDI.sendNoteOn(38, 80, 10);
         MIDI.sendNoteOff(38, 0, 10);
         ++noteCount;
       }
      
-      if (hihat.hit == true)
-      {
+      if(hihat.hit == true) {
         MIDI.sendNoteOn(46, 80, 10);
         MIDI.sendNoteOff(46, 0, 10);
         ++noteCount;
@@ -162,7 +156,6 @@ bool check_user(int t, int notes) {
 
   else
     return false;
-
 }
 
 // game logic function returning a bool. accepts an integer time value for delay/tempo 
@@ -215,7 +208,6 @@ bool beat_off(int t) {
   }
   
   else { 
-    
     digitalWrite(3, HIGH); // power fail indicator LED
     delay(3000); // leave on for 3 seconds
     digitalWrite(3, LOW); // turn off LED
@@ -235,15 +227,12 @@ void displayWrite(uint8_t value) {
      for(pin = 5, a = 0; pin <= 8; pin++, a++)
         digitalWrite(pin, bitRead(value, a));
 
-
-     for(pin2 = 12, b = 0; pin2 >= 9; pin2--, b++) {
-        digitalWrite(pin2, bitRead(0, b));
-         
-     }
+     for(pin2 = 12, b = 0; pin2 >= 9; pin2--, b++) 
+        digitalWrite(pin2, bitRead(0, b));  
   }
 
   else if(value >= 10) {
-    int ones, tens;
+     int ones, tens;
      ones = value % 10;
      tens = (value / 10) % 10;
         
@@ -262,27 +251,23 @@ void displayWrite(uint8_t value) {
      int count = 0; // tracks how many times pad was hit
      unsigned long start_t = millis(), elapse_time = 0; // track time
      
-
      // check user input for 4 seconds
      while(elapse_time <= 3000) {
 
          sense();
         
-         if (kick.hit == true)
-        {
+         if(kick.hit == true) {
           MIDI.sendNoteOn(35, 120, 10); //(note, velocity, channel)
           MIDI.sendNoteOff(35, 0, 10);
         }
       
-        if (snare.hit == true)
-        {
+        if(snare.hit == true) {
           MIDI.sendNoteOn(38, 80, 10); //(note, velocity, channel)
           MIDI.sendNoteOff(38, 0, 10);
           ++count;
         }
        
-        if (hihat.hit == true)
-        {
+        if(hihat.hit == true) {
           MIDI.sendNoteOn(46, 80, 10); //(note of close, velocity, channel)
           MIDI.sendNoteOff(46, 0, 10);  
         }
@@ -297,9 +282,7 @@ void displayWrite(uint8_t value) {
     else return false;
  }
 
- 
- void setup()
- {
+ void setup() {
      randomSeed(0);
      MIDI.begin(10);
 
@@ -312,45 +295,34 @@ void displayWrite(uint8_t value) {
      pinMode(3, OUTPUT);
  }   
   
- void loop()
- {
-    
+ void loop() {
     sense(); // sense piezo inputs
 
-    //Sending MIDI signals.
-    
-    if (kick.hit == true)
-    {
+    if(kick.hit == true) {
       MIDI.sendNoteOn(35, 100, 10); //(note, velocity, channel)
       MIDI.sendNoteOff(35, 0, 10);
     }
   
     //SNARE//
-    if (snare.hit == true)
-    {
+    if(snare.hit == true) {
       MIDI.sendNoteOn(38, 80, 10); //(note, velocity, channel)
       MIDI.sendNoteOff(38, 0, 10);
-
     }
     //HIHAT
-    if (hihat.hit == true)
-    {
+    if(hihat.hit == true) {
       MIDI.sendNoteOn(46, 80, 10); //(note of close, velocity, channel)
       MIDI.sendNoteOff(46, 0, 10);  
     }
   
-
     start_game = (start_game == false) ? check_start() : true;
     
     // if start has been activated
     if(start_game) {
         // game logic 
         if(playCount < 100 && win_round) {
-           
            win_round = beat_off(start_delay);
            start_delay -= 4; // increase tempo by decreasing delay
            playCount++;
-
         }
 
         // if user wins game or loses reset all values
@@ -359,8 +331,6 @@ void displayWrite(uint8_t value) {
           start_delay = START_DELAY_DEFAULT;
           playCount = 0;
           score = 0;
-          
         }
-    }
-     
+    }   
  }
